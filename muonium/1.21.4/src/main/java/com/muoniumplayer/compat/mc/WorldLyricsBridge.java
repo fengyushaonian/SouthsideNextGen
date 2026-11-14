@@ -3,7 +3,7 @@ package com.muoniumplayer.compat.mc;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexSorting;
+import com.mojang.blaze3d.ProjectionType;
 import com.muoniumplayer.core.lyrics3d.WorldLyricsRenderer;
 import com.muoniumplayer.core.lyrics3d.WorldLyricsSettings;
 import com.muoniumplayer.core.lyrics3d.WorldLyricsState;
@@ -174,7 +174,6 @@ public final class WorldLyricsBridge {
             // 2. 视图矩阵换单位矩阵（1.21.1：RenderSystem.getModelViewStack 是 Matrix4fStack）
             RenderSystem.getModelViewStack().pushMatrix();
             RenderSystem.getModelViewStack().identity();
-            RenderSystem.applyModelViewMatrix();
 
             // 2.5 bob 防抖：投影临时换成纯 fov 透视（剔除 bobHurt/bobView 的摇晃增量），
             //     画完还原 —— 世界照旧抖，歌词不抖
@@ -207,7 +206,6 @@ public final class WorldLyricsBridge {
                         GL11.GL_ONE, GL11.GL_ZERO);
                 if (bobFreed) bobFreeRestore();
                 RenderSystem.getModelViewStack().popMatrix();
-                RenderSystem.applyModelViewMatrix();
             }
         } catch (Throwable t) {
             broken = true;
@@ -254,7 +252,7 @@ public final class WorldLyricsBridge {
 
             org.joml.Matrix4f previousProjection = new org.joml.Matrix4f(RenderSystem.getProjectionMatrix());
             RenderSystem.setProjectionMatrix(new org.joml.Matrix4f(hudProjection),
-                    VertexSorting.ORTHOGRAPHIC_Z);
+                    ProjectionType.ORTHOGRAPHIC);
 
             // bob 防抖：捕获的关卡投影含 bob 合成，歌词直画同样换成纯 fov 透视
             //（失败则保留含 bob 投影 = 旧行为）。bobFreeBackup 覆写掉刚备份的
@@ -265,7 +263,6 @@ public final class WorldLyricsBridge {
 
             RenderSystem.getModelViewStack().pushMatrix();
             RenderSystem.getModelViewStack().identity();
-            RenderSystem.applyModelViewMatrix();
 
             GlCompat.blend(true);
             GlCompat.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
@@ -291,8 +288,7 @@ public final class WorldLyricsBridge {
                         GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
                 if (bobFreed) bobFreeRestore();
                 RenderSystem.getModelViewStack().popMatrix();
-                RenderSystem.applyModelViewMatrix();
-                RenderSystem.setProjectionMatrix(previousProjection, VertexSorting.ORTHOGRAPHIC_Z);
+                RenderSystem.setProjectionMatrix(previousProjection, ProjectionType.ORTHOGRAPHIC);
             }
         } catch (Throwable t) {
             // 刻意不置 broken：HUD 直画失败只损失本帧，下一帧世界阶段照常兜底 ——
@@ -347,7 +343,7 @@ public final class WorldLyricsBridge {
      * <p>剔除法：歌词直画窗口内把投影临时换成「纯 fov 透视」
      *（{@code gameRenderer.getProjectionMatrix(getFov(camera, partialTick, true))}
      * —— 两个方法都 public，不需要 mixin/AT），画完还原。世界照旧抖，
-     * 歌词钉在无摇晃视角上。partialTick 取 {@code mc.getTimer()
+     * 歌词钉在无摇晃视角上。partialTick 取 {@code mc.getDeltaTracker()
      * .getGameTimeDeltaPartialTick(true)}（与 renderLevel 传给 bobHurt/bobView
      * 的同一帧插值）。</p>
      */
@@ -393,12 +389,12 @@ public final class WorldLyricsBridge {
                 }
             }
             if (fovM == null) { bobFreeProjFailed = true; return false; }
-            float partialTick = mc.getTimer().getGameTimeDeltaPartialTick(true);
-            double fov = (Double) fovM.invoke(gr, camera, partialTick, true);
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+            float fov = ((Double) fovM.invoke(gr, camera, partialTick, true)).floatValue();
             org.joml.Matrix4f pure = gr.getProjectionMatrix(fov);
             if (pure == null || !isFinite(pure)) return false;
             bobFreeBackup.set(RenderSystem.getProjectionMatrix());
-            RenderSystem.setProjectionMatrix(new org.joml.Matrix4f(pure), VertexSorting.DISTANCE_TO_ORIGIN);
+            RenderSystem.setProjectionMatrix(new org.joml.Matrix4f(pure), ProjectionType.PERSPECTIVE);
             return true;
         } catch (Throwable t) {
             // 一次性熔断：投影通路异常时不再反复尝试（歌词与世界同抖总比反复异常强）
@@ -414,7 +410,7 @@ public final class WorldLyricsBridge {
     private static void bobFreeRestore() {
         try {
             RenderSystem.setProjectionMatrix(new org.joml.Matrix4f(bobFreeBackup),
-                    VertexSorting.DISTANCE_TO_ORIGIN);
+                    ProjectionType.PERSPECTIVE);
         } catch (Throwable ignored) {
         }
     }

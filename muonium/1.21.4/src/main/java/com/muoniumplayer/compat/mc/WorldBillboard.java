@@ -104,7 +104,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
         return ADDITIVE_TYPES.computeIfAbsent(rl, r -> {
             RenderType.CompositeState state = RenderType.CompositeState.builder()
                     .setShaderState(RenderStateShard.RENDERTYPE_BEACON_BEAM_SHADER)
-                    .setTextureState(new RenderStateShard.TextureStateShard(r, false, false))
+                    .setTextureState(new RenderStateShard.TextureStateShard(r, net.minecraft.util.TriState.FALSE, false))
                     .setTransparencyState(RenderStateShard.LIGHTNING_TRANSPARENCY)
                     .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
                     .setCullState(RenderStateShard.NO_CULL)
@@ -121,7 +121,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
         return SHADER_TYPES.computeIfAbsent(rl, r -> {
             RenderType.CompositeState state = RenderType.CompositeState.builder()
                     .setShaderState(RenderStateShard.RENDERTYPE_BEACON_BEAM_SHADER)
-                    .setTextureState(new RenderStateShard.TextureStateShard(r, false, false))
+                    .setTextureState(new RenderStateShard.TextureStateShard(r, net.minecraft.util.TriState.FALSE, false))
                     .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                     .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
                     .setCullState(RenderStateShard.NO_CULL)
@@ -602,7 +602,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                 if (img == null) return;
                 for (int y = 0, i = 0; y < h; y++) {
                     for (int x = 0; x < w; x++, i++) {
-                        img.setPixelRGBA(x, y, px[i]);
+                        img.setPixelABGR(x, y, px[i]);
                     }
                 }
                 glowTex.upload();
@@ -776,7 +776,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                 // 写坏相邻 native 内存的教训。
                 for (int row = 0, i = 0; row < h; row++) {
                     for (int col = 0; col < w; col++, i++) {
-                        img.setPixelRGBA(col, row, px[i]);
+                        img.setPixelABGR(col, row, px[i]);
                     }
                 }
                 tex.upload();
@@ -821,7 +821,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                         float r2 = dx * dx + dy * dy;
                         int a = (int) (255 * ((float) Math.exp(-r2 * 9f) * 0.85f
                                 + (float) Math.exp(-r2 * 2.8f) * 0.15f));
-                        img.setPixelRGBA(x, y, 0xFFFFFF | (a << 24));
+                        img.setPixelABGR(x, y, 0xFFFFFF | (a << 24));
                     }
                 }
                 DynamicTexture tex = new TrailTexture(img);
@@ -902,7 +902,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                                 * (float) Math.exp(-(d45x * d45x) * (160f + 380f * ady));
                         v += rayD * 0.4f;
                         int a = Math.min(255, (int) (255 * Math.min(1f, v)));
-                        img.setPixelRGBA(x, y, 0xFFFFFF | (a << 24));
+                        img.setPixelABGR(x, y, 0xFFFFFF | (a << 24));
                     }
                 }
                 DynamicTexture tex = new TrailTexture(img);
@@ -986,7 +986,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                         float v = (y + 0.5f) / 32f * 2f - 1f;
                         float a = (float) Math.exp(-u * u * 3.2f)
                                 * (float) Math.exp(-v * v * 3.5f);
-                        img.setPixelRGBA(x, y, 0xFFFFFF | ((int) (255 * a) << 24));
+                        img.setPixelABGR(x, y, 0xFFFFFF | ((int) (255 * a) << 24));
                     }
                 }
                 DynamicTexture tex = new TrailTexture(img);
@@ -1033,7 +1033,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                         float dy = (y + 0.5f) / 64f - 1f;
                         float r = (float) Math.sqrt(dx * dx + dy * dy);
                         float band = (float) Math.exp(-((r - 0.62f) * (r - 0.62f)) / (2f * 0.05f * 0.05f));
-                        img.setPixelRGBA(x, y, 0xFFFFFF | ((int) (255 * band) << 24));
+                        img.setPixelABGR(x, y, 0xFFFFFF | ((int) (255 * band) << 24));
                     }
                 }
                 DynamicTexture tex = new TrailTexture(img);
@@ -1066,7 +1066,7 @@ public final class WorldBillboard implements WorldLyricsRenderer.Host {
                     // 头（y=0）不透明 → 尾（y=7）透明；sRGB 感知的平方衰减更接近 folia 的渐隐
                     int a = Math.max(0, 255 - (255 * y * y) / (7 * 7));
                     for (int x = 0; x < 128; x++) {
-                        img.setPixelRGBA(x, y, 0xFFFFFF | (a << 24));
+                        img.setPixelABGR(x, y, 0xFFFFFF | (a << 24));
                     }
                 }
                 DynamicTexture tex = new TrailTexture(img);

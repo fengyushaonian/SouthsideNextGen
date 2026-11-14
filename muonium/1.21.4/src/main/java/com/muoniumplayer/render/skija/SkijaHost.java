@@ -224,7 +224,7 @@ public final class SkijaHost {
             // 所以此刻唯一干净的背景就是它当前绑定的主目标（savedFbo）。放在 Skia 绑自己的离屏目标之前，裸 GL 不会踩到 Skia 的状态缓存。
             // 帧号闸：同一显示帧内只有第一个 beginFrame 采集，见 lastImmediateBackdropFrameTime 的注释。
             // 1.21.1 的计时器换成了 DeltaTracker（没有 1.20.1 的 getFrameTime），取当帧 partialTick 当帧号。
-            float frameTime = client.getTimer().getGameTimeDeltaPartialTick(true);
+            float frameTime = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
             if (frameTime != lastImmediateBackdropFrameTime) {
                 // This is the underlay captured before the current Skia Screen content. The post-render
                 // hook replaces it with the completed topmost Screen image for the island lens.

@@ -539,7 +539,7 @@ public final class ListenerProbe implements AcousticsRuntime.ListenerSampler {
             return from.distanceToSqr(blockHit.getLocation()) <= from.distanceToSqr(fluidHit.getLocation())
                     ? blockHit : fluidHit;
         }, getter -> BlockHitResult.miss(to,
-                Direction.getNearest(from.x - to.x, from.y - to.y, from.z - to.z),
+                Direction.getNearest((int) Math.floor(from.x - to.x), (int) Math.floor(from.y - to.y), (int) Math.floor(from.z - to.z)),
                 BlockPos.containing(to)));
     }
 

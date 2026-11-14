@@ -177,11 +177,8 @@ final class LyricGlyphAtlasBridge implements LyricGlyphAtlas.Host {
                 return -1;
             }
         }
-
-        /** 资源重载钩子：页像素全程自管，不走 ResourceManager 重载。 */
-        @Override
-        public void load(net.minecraft.server.packs.resources.ResourceManager manager) {
-        }
+        // 1.21.4 的 DynamicTexture/AbstractTexture 没有 load(ResourceManager) 这个钩子，
+        // 原 1.21.1 的 @Override 空实现已删除（页像素本来就全程自管）。
 
         /** 把一格 ARGB int 写进 CPU 侧 NativeImage 的子矩形并上传。 */
         void uploadSub(int x, int y, int w, int h, int[] pixelsArgb) {
@@ -200,13 +197,13 @@ final class LyricGlyphAtlasBridge implements LyricGlyphAtlas.Host {
                     int g = (argb >>> 8) & 0xFF;
                     int b = argb & 0xFF;
                     // NativeImage 内存序 ABGR：setPixelRGBA 吃 (a<<24)|(b<<16)|(g<<8)|r
-                    image.setPixelRGBA(x + col, y + row, (a << 24) | (b << 16) | (g << 8) | r);
+                    image.setPixelABGR(x + col, y + row, (a << 24) | (b << 16) | (g << 8) | r);
                 }
             }
             // 子矩形上传（javap 核对的 9 参重载 → _upload(level, xOffset, yOffset,
             // unpackSkipPixels=x, unpackSkipRows=y, regionWidth, regionHeight,
             // blur=false, clamp=false, mipmap=false, closeAfter=false)）。
-            image.upload(0, x, y, x, y, w, h, false, false);
+            image.upload(0, x, y, x, y, w, h, false);
             // 基底层变了 → 重生成整条链（每个新字形烘焙才触发一次，稳态零成本）
             if (mipTop > 0) {
                 org.lwjgl.opengl.GL30.glGenerateMipmap(

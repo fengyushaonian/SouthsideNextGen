@@ -128,9 +128,28 @@ Southside 的 `build.gradle` 里 `processResources` 负责把 Muonium 的 jar �
 
 ---
 
-## 5. 已知限制
+## 5. 构建结果
 
-1. **移植未完成**。共享业务层（1447 文件）MC 中立，可直接复用；版本层 74 个文件里已核对并修掉 5 处硬差异，其余待编译器与实测逐个暴露。
+| 项 | 结果 |
+|---|---|
+| CI run | `43605489193`，两个 job 均 success |
+| Muonium 产物 | `MuoniumPlayer-1.21.4-fabric-2.5.2.jar`，17,004,848 字节 |
+| Southside 产物 | `Southside-2.0.1-rebuilt.jar`，105.5 MB |
+| 嵌套验证 | 成品内含 `META-INF/jars/MuoniumPlayer-1.21.4-fabric-2.5.2.jar`（同 17,004,848 字节） |
+
+编译错误是三轮收敛下来的，全部是 1.21.2~1.21.4 的 API 变更，没有一处是"改不动只能删功能"：
+
+| 轮次 | 错误数（去重后） | 内容 |
+|---|---|---|
+| 1 | 6 类 | `setPixelRGBA`→`setPixelABGR`、`TextureStateShard` 参数转 `TriState`、`VertexSorting`→`ProjectionType`、`applyModelViewMatrix` 被删、`getTimer`→`getDeltaTracker`、`getNearest` 重载、`upload` 少一参、`load(ResourceManager)` 钩子没了 |
+| 2 | 2 类 | `setPixelABGR` 是 private（改走 AW 开放可见性）、`getNearest` 需要 4 参 |
+| 3 | 0 | 两个 job 全绿 |
+
+## 6. 已知限制
+
+1. **没有游戏实测**。编译通过与"播放器能起界面、能出声"是两件事，按 Muonium 自己的验收口径这只到「构建通过」，没到「游戏实测通过」。Skija 渲染层能否在 1.21.4 的 GL 状态机上起帧、音源能否出声，都还没验证。
 2. **`transparent` / `spin` 两个模式有已知观感降级**：1.21.1 把火焰、阴影、碰撞箱留在缩放矩阵之外，本车道用 `@At("RETURN")` 收尾，它们会一起进矩阵。要精确复现需改成注入 `EntityRenderState.displayFireAnimation` 的字段访问。
-3. **映射隔离靠反射**：桥里写的类名/方法名是 Muonium 的公开契约，改动它们等于改接口，不是重构。
-4. **未做游戏实测**：Skija 渲染层能否在 1.21.4 的 GL 状态机上起帧、音源能否出声，都还没验证。
+3. **`applyModelViewMatrix()` 是直接删掉的**：1.21.4 里矩阵由 `getModelViewMatrix()` 直接读，不再有「把栈顶应用到 GL」这一步。删掉后 3D 歌词直画的矩阵语义是否与 1.21.1 完全一致，需要在游戏里比对（这是本车道最可疑的一处）。
+4. **Mixin 注入点是编译期验证不到的**：`muonium.mixins.json` 里 10 个 mixin 的目标方法在 1.21.4 是否存在、描述符是否匹配，只有进游戏才会暴露。已按映射逐个核对了 4 个实体渲染相关的，其余 6 个只做了类级核对。
+5. **映射隔离靠反射**：桥里写的类名/方法名是 Muonium 的公开契约，改动它们等于改接口，不是重构。
+6. **玩家需要装 Fabric Language Kotlin**（Muonium 是 Kotlin/Java 混编，运行时靠 FLK 提供）。

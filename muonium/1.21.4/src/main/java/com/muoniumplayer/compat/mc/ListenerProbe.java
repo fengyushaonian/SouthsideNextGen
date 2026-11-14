@@ -539,7 +539,7 @@ public final class ListenerProbe implements AcousticsRuntime.ListenerSampler {
             return from.distanceToSqr(blockHit.getLocation()) <= from.distanceToSqr(fluidHit.getLocation())
                     ? blockHit : fluidHit;
         }, getter -> BlockHitResult.miss(to,
-                Direction.getNearest((int) Math.floor(from.x - to.x), (int) Math.floor(from.y - to.y), (int) Math.floor(from.z - to.z)),
+                Direction.getNearest((int) Math.floor(from.x - to.x), (int) Math.floor(from.y - to.y), (int) Math.floor(from.z - to.z), Direction.UP),
                 BlockPos.containing(to)));
     }
 
@@ -570,8 +570,7 @@ public final class ListenerProbe implements AcousticsRuntime.ListenerSampler {
             }
             // 回调返回 null = 继续推进:把整条路径上的遮挡都记完
             return null;
-        }, getter -> BlockHitResult.miss(to, Direction.getNearest(
-                from.x - to.x, from.y - to.y, from.z - to.z), BlockPos.containing(to)));
+        }, getter -> BlockHitResult.miss(to, Direction.getNearest((int) Math.floor(from.x - to.x), (int) Math.floor(from.y - to.y), (int) Math.floor(from.z - to.z), Direction.UP), BlockPos.containing(to)));
         return (float) Math.min(6.0, occlusion[0]);
     }
 

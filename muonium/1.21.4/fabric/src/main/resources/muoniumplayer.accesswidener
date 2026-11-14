@@ -8,3 +8,8 @@ accessWidener	v2	named
 #      即使还要用也不需要 access widener。
 # 文件必须保留（fabric.mod.json 里声明了 accessWidener），只是不再有条目。
 # Loom 会打印一句 "Cannot remap modifiers ... in any of the targets []"，无条目时属无害提示。
+# ==================== 1.21.4 车道新增 ====================
+# NativeImage#setPixelABGR 在 1.21.4 是 private（1.21.1 的 setPixelRGBA 是 public）。
+# 世界歌词图集的像素写入按 ABGR 内存序拼位，改用 public 的 setPixel 需要另行确认它的
+# 通道顺序；这里只开放可见性，写入语义一个字没动。
+accessible	method	com/mojang/blaze3d/platform/NativeImage	setPixelABGR	(III)V

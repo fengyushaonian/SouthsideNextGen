@@ -15,7 +15,6 @@ import dev.southside.manager.StickerManager;
 import dev.southside.module.ModuleManager;
 import dev.southside.nanovg.NanoFontLoader;
 import dev.southside.nanovg.NanoLoader;
-import dev.southside.nel.NeteaseLauncher;
 import dev.southside.orbit.EventBus;
 import dev.southside.orbit.IEventBus;
 import dev.southside.render.ProgressBarOverlay;
@@ -77,8 +76,6 @@ public class Southside implements ClientModInitializer, MinecraftAccessor {
 
    public void onInitialize() {
       LOGGER.info("Start Initializing");
-      NeteaseLauncher.get().killNEL();
-      NeteaseLauncher.get().init();
       this.eventBus.subscribe(this);
       this.eventBus.register(BedwarsCheckUtils.INSTANCE);
       this.eventBus.register(MovementUtils.INSTANCE);
@@ -124,7 +121,6 @@ public class Southside implements ClientModInitializer, MinecraftAccessor {
          NanoLoader.destroy();
          GPTAPIUtils.shutdown();
          EventManager.INSTANCE.postStop();
-         NeteaseLauncher.get().stop();
       }
    }
 

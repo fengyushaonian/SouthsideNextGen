@@ -1,0 +1,26 @@
+// 1.21.4 单加载器构建：共享源码在仓库根的 muonium-common/ 等目录，
+// 加载器外壳在 fabric/，版本差异层在 src/。
+// 本车道是为「内建进 Southside（Fabric 1.21.4）」新建的，只构建 Fabric 侧。
+pluginManagement {
+    plugins {
+        id 'org.jetbrains.kotlin.jvm' version '2.4.21'
+        id 'org.jetbrains.kotlin.plugin.lombok' version '2.4.21'
+    }
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        // 阿里云优先：CI 与国内机器都更稳。
+        maven {
+            name = 'Aliyun'
+            url = 'https://maven.aliyun.com/repository/public'
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'muoniumplayer-1.21.4'
+
+include 'fabric'

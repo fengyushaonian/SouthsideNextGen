@@ -1,0 +1,105 @@
+name: Build Southside + built-in MuoniumPlayer
+
+# 编译只在这里跑（本地不编译）。
+# 两个 job 故意分开：Muonium 的 1.21.4 移植还在适配中，它的编译错误不应该
+# 把 Southside 自身的问题一起盖住，反之亦然。
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  muonium:
+    name: MuoniumPlayer 1.21.4 (Fabric)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: 构建（先只编 main，不碰测试）
+        working-directory: muonium/1.21.4
+        run: |
+          chmod +x gradlew
+          # remapJar 只依赖 classes，不触发测试编译。
+          # 1.21.1 车道带来的版本特有测试（Port121StaticTest 等）在 1.21.4 上
+          # 断言的是 1.21.1 的 API，移植完成前不能拿它们判成败。
+          ./gradlew :fabric:remapJar --no-daemon --stacktrace --continue
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4G"
+
+      - name: 产物清单
+        if: always()
+        run: ls -lh muonium/1.21.4/fabric/build/libs/ || true
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: MuoniumPlayer-1.21.4-fabric
+          path: muonium/1.21.4/fabric/build/libs/*.jar
+          if-no-files-found: warn
+
+  southside:
+    name: Southside (with embedded Muonium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: muonium
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      # 内建需要 Muonium 的成品；先把它取回来放到约定路径。
+      - name: 取回 Muonium 产物
+        uses: actions/download-artifact@v4
+        with:
+          name: MuoniumPlayer-1.21.4-fabric
+          path: muonium/1.21.4/fabric/build/libs
+
+      - name: 构建 Southside
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3G"
+
+      - name: 确认嵌套 jar 已进包
+        run: |
+          jar=$(ls build/libs/*-rebuilt.jar 2>/dev/null | head -1)
+          if [ -z "$jar" ]; then jar=$(ls build/libs/*.jar | head -1); fi
+          echo "产物: $jar"
+          unzip -l "$jar" | grep -i 'META-INF/jars/MuoniumPlayer' \
+            || { echo "::error::成品里没有 MuoniumPlayer 嵌套 jar"; exit 1; }
+
+      - name: 产物清单
+        if: always()
+        run: ls -lh build/libs/ || true
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Southside-with-Muonium
+          path: build/libs/*.jar
+          if-no-files-found: error

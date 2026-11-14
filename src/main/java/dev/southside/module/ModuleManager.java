@@ -153,6 +153,8 @@ public class ModuleManager {
       Southside.INSTANCE.getEventBus().register(this);
       this.add(new dev.southside.module.impl.client.ArrayList());
       this.add(new ClientSettings());
+      // 内建 MuoniumPlayer 的 ClickGUI 入口（按钮式，点一次开一次）
+      this.add(new dev.southside.module.impl.client.MuoniumPlayer());
       this.add(new Notification());
       this.add(new Watermark());
       this.add(new Targets());

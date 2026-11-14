@@ -1,6 +1,6 @@
 package dev.southside.mixin.gui;
 
-import dev.southside.gui.netease.NeteaseScreen;
+import dev.southside.muonium.MuoniumBridge;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.text.Text;
@@ -53,8 +53,10 @@ public abstract class MixinTitleScreen extends Screen {
       if (multiplayer != null) {
          int y = multiplayer.getY();
          int spacingY = 24;
+         // 内建 MuoniumPlayer 的入口（原 NEL 按钮的位置）。
+         // 走反射桥：Muonium 用 mojmap、本工程用 yarn，编译期没有对方的符号。
          this.addDrawableChild(
-            ButtonWidget.builder(Text.literal("NEL"), button -> this.client.setScreen(NeteaseScreen.create()))
+            ButtonWidget.builder(Text.literal("Music"), button -> MuoniumBridge.openPlayer())
                .dimensions(this.width / 2 - 100, y + spacingY, 200, 20)
                .build()
          );

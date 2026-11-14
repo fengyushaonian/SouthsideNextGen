@@ -39,6 +39,32 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.addAll(['-Xmaxerrs', '2000'])
 }
 
+// ==================== 内建 MuoniumPlayer（Jar-in-Jar）====================
+// 把 muonium/1.21.4 车道的产物作为嵌套 jar 打进本 mod，运行期由 Fabric Loader
+// 展开成独立的子 mod（id = muonium）。这是 Fabric 官方的「内建另一个 mod」机制。
+//
+// 构建顺序：先 `cd muonium/1.21.4 && gradlew :fabric:build`，再构建本工程。
+// 直接跑本工程的 build 而没有先构建 Muonium 时，这里会跳过并打印提示 ——
+// 不会静默产出一个「少了播放器」的包。
+def muoniumJarName = 'MuoniumPlayer-1.21.4-fabric-2.5.2.jar'
+def muoniumJar = file("muonium/1.21.4/fabric/build/libs/${muoniumJarName}")
+
+tasks.named('processResources') {
+    if (muoniumJar.exists()) {
+        from(muoniumJar) {
+            into 'META-INF/jars'
+        }
+        doFirst {
+            logger.lifecycle("[Muonium] 内嵌 ${muoniumJarName}（${muoniumJar.length()} 字节）")
+        }
+    } else {
+        doFirst {
+            logger.warn("[Muonium] 未找到 ${muoniumJar}，本次产物不含内建播放器。")
+            logger.warn("[Muonium] 先执行: cd muonium/1.21.4 && ./gradlew :fabric:build")
+        }
+    }
+}
+
 tasks.named('jar') {
     manifest.from('src/main/resources/META-INF/MANIFEST.MF')
     exclude('META-INF/MANIFEST.MF')

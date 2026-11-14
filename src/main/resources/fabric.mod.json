@@ -22,7 +22,8 @@
   "depends": {
     "fabricloader": ">=0.18.1",
     "fabric-api": "*",
-    "minecraft": "1.21.4"
+    "minecraft": "1.21.4",
+    "fabric-language-kotlin": ">=1.13.12"
   },
   "jars": [
     {
@@ -42,6 +43,9 @@
     },
     {
       "file": "META-INF/jars/lwjgl-nanovg-3.3.3-natives-macos.jar"
+    },
+    {
+      "file": "META-INF/jars/MuoniumPlayer-1.21.4-fabric-2.5.2.jar"
     }
   ]
 }

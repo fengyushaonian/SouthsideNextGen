@@ -5,7 +5,7 @@ import cc.polyfrost.oneconfig.renderer.NanoVGHelper;
 import cc.polyfrost.oneconfig.renderer.font.Fonts;
 import dev.southside.MinecraftAccessor;
 import dev.southside.compat.IASCompat;
-import dev.southside.gui.netease.NeteaseScreen;
+import dev.southside.muonium.MuoniumBridge;
 import java.awt.Color;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.text.Text;
@@ -83,7 +83,7 @@ public class SouthsideMenuScreen extends Screen {
          }
 
          this.addDrawableChild(
-            MenuButtonWidget.builder(Text.literal("NEL"), button -> this.client.setScreen(NeteaseScreen.create()), this.position)
+            MenuButtonWidget.builder(Text.literal("Music"), button -> MuoniumBridge.openPlayer(), this.position)
                .dimensions(x, y + spacingY * 3, w, h)
                .build()
          );

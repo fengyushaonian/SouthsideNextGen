@@ -132,4 +132,105 @@ public final class MuoniumBridge {
             mc.player.sendMessage(Text.literal(msg), false);
         }
     }
+
+    // ==================== 搭路状态推送 ====================
+    //
+    // Muonium 侧的对端是 com.muoniumplayer.compat.mc.CheatClientBridge，
+    // 方法签名：
+    //   public static void setScaffoldState(boolean, float, int, int, String)
+    //   public static void clearScaffold()
+    //
+    // 同样只认字符串，理由见类头（两套映射）。这里额外缓存 MethodHandle：
+    // 搭路时这个方法每帧都会被调，不能每次都 findStatic。
+
+    private static final String SCAFFOLD_CLASS = "com.muoniumplayer.compat.mc.CheatClientBridge";
+
+    private static MethodHandle scaffoldSetHandle;
+    private static MethodHandle scaffoldClearHandle;
+    private static boolean scaffoldResolved;
+    private static boolean scaffoldWarned;
+
+    /**
+     * 把 MC 的 yaw 换成方位字母。
+     *
+     * <p>MC 口径：0 = 南（+Z）、90 = 西（−X）、180 = 北（−Z）、270 = 东（+X）。
+     * 45° 一档。</p>
+     */
+    public static String facingOf(float yawDeg) {
+        float yaw = yawDeg % 360f;
+        if (yaw < 0f) {
+            yaw += 360f;
+        }
+        if (yaw < 45f || yaw >= 315f) {
+            return "S";
+        }
+        if (yaw < 135f) {
+            return "W";
+        }
+        if (yaw < 225f) {
+            return "N";
+        }
+        return "E";
+    }
+
+    private static synchronized void resolveScaffold() {
+        if (scaffoldResolved) {
+            return;
+        }
+        scaffoldResolved = true;
+        try {
+            Class<?> bridge = Class.forName(SCAFFOLD_CLASS, true, MuoniumBridge.class.getClassLoader());
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+            scaffoldSetHandle = lookup.findStatic(bridge, "setScaffoldState",
+                    MethodType.methodType(void.class, boolean.class, float.class,
+                            int.class, int.class, String.class));
+            scaffoldClearHandle = lookup.findStatic(bridge, "clearScaffold",
+                    MethodType.methodType(void.class));
+            Southside.LOGGER.info("[Muonium] 搭路状态桥已就绪（{}）", SCAFFOLD_CLASS);
+        } catch (Throwable t) {
+            scaffoldSetHandle = null;
+            scaffoldClearHandle = null;
+            Southside.LOGGER.warn("[Muonium] 搭路状态桥不可用（灵动岛/歌词侧向布局将不生效）", t);
+        }
+    }
+
+    /**
+     * 推送搭路状态。宿主每帧调一次即可。
+     *
+     * @param active       搭路模块是否启用
+     * @param yawDeg       搭路方向（MC yaw）
+     * @param hotbarBlocks 热键栏剩余方块
+     * @param placedBlocks 本次已放置方块
+     */
+    public static void pushScaffoldState(boolean active, float yawDeg,
+                                         int hotbarBlocks, int placedBlocks) {
+        resolveScaffold();
+        if (scaffoldSetHandle == null) {
+            if (!scaffoldWarned) {
+                scaffoldWarned = true;
+                Southside.LOGGER.warn("[Muonium] 搭路状态推送被跳过：桥未就绪");
+            }
+            return;
+        }
+        try {
+            scaffoldSetHandle.invokeExact(active, yawDeg, hotbarBlocks, placedBlocks, facingOf(yawDeg));
+        } catch (Throwable t) {
+            scaffoldSetHandle = null;
+            Southside.LOGGER.warn("[Muonium] 推送搭路状态失败，后续推送停用", t);
+        }
+    }
+
+    /** 关掉搭路模式（模块关闭时调用）。 */
+    public static void clearScaffoldState() {
+        resolveScaffold();
+        if (scaffoldClearHandle == null) {
+            return;
+        }
+        try {
+            scaffoldClearHandle.invokeExact();
+        } catch (Throwable t) {
+            scaffoldClearHandle = null;
+            Southside.LOGGER.warn("[Muonium] 清除搭路状态失败", t);
+        }
+    }
 }

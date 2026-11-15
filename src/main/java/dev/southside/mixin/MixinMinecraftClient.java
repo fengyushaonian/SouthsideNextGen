@@ -17,6 +17,8 @@ import dev.southside.manager.ServerPacketManager;
 import dev.southside.mixininterfaces.IMinecraftClient;
 import dev.southside.module.impl.client.ClientSettings;
 import dev.southside.module.impl.render.OldHitting;
+import dev.southside.module.impl.world.Scaffold;
+import dev.southside.muonium.MuoniumBridge;
 import dev.southside.utils.FuckMixin;
 import dev.southside.utils.MinecraftTickTimerUtils;
 import dev.southside.utils.player.PlayerUtils;
@@ -202,6 +204,13 @@ public abstract class MixinMinecraftClient implements IMinecraftClient {
    public void postTick(CallbackInfo ci) {
       Southside.INSTANCE.getEventBus().call(new TickEvent(Stage.POST));
       PacketOrderManager.resetAllState();
+      // 空闲方位：搭路模块没开时也要让内建 Muonium 的灵动岛知道当前朝哪边
+      //（用户要求「空闲时显示方向」）。搭路中由 Scaffold.onRender3D 自己推，
+      // 那里带得到已放置方块数，这里不能覆盖它。
+      if (this.player != null && Southside.get() != null && Southside.get().getModuleManager() != null
+            && !Southside.get().getModuleManager().isEnabled(Scaffold.class)) {
+         MuoniumBridge.pushScaffoldState(false, this.player.getYaw(), 0, 0);
+      }
    }
 
    @Inject(

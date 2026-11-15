@@ -1843,7 +1843,21 @@ public final class WorldLyricsState {
 
     private static Row resolveInternal(SpawnedLine f, CameraView camera, Params params,
                                        float alpha, boolean isActive, float lift,
-                                       boolean allowKeepAway) {        double rx = f.x - camera.eyeX();
+                                       boolean allowKeepAway) {
+        // 搭路模式：整句按当前相机重锚到左右两侧。
+        // 锚点放在这里而不是 spawn() 里，是因为 spawn 只在每句开始时跑一次，
+        // 而搭路时玩家每帧都在往前推进 —— 锚在 spawn 会把歌词甩在身后。
+        if (LyricSideLayout.active) {
+            double[] sidePose = LyricSideLayout.anchor(
+                    camera.eyeX(), camera.eyeY(), camera.eyeZ(), f.lineIndex);
+            f.x = sidePose[0];
+            f.y = sidePose[1];
+            f.z = sidePose[2];
+            f.spawnYawDeg = sidePose[3];
+            f.spawnPitchDeg = sidePose[4];
+        }
+
+        double rx = f.x - camera.eyeX();
         double ry = f.y - camera.eyeY();
         double rz = f.z - camera.eyeZ();
         double len = Math.sqrt(rx * rx + ry * ry + rz * rz);
@@ -1876,6 +1890,11 @@ public final class WorldLyricsState {
 
         // 尺寸：0.03 × scale × (distance/6.5)
         float scale = (float) (PX_TO_WORLD * params.scale() * (len / DISTANCE_NORM));
+        if (LyricSideLayout.active) {
+            // 搭路模式把歌词拉到 distanceBlocks（默认 3.6 格），而 scale 是按距离线性算的 ——
+            // 不补偿的话字会缩到约三分之一。按距离比例拉回来，观感字号与常规模式一致。
+            scale *= (float) (DISTANCE_NORM / Math.max(0.8, LyricSideLayout.distanceBlocks));
+        }
 
         return new Row(f, f.x, f.y + lift, f.z,
                 camera.eyeX(), camera.eyeY(), camera.eyeZ(),
@@ -2861,6 +2880,38 @@ public final class WorldLyricsState {
     public static boolean hasLyrics() {
         return CloudMusic.lyrics != null && !CloudMusic.lyrics.isEmpty()
                 && CloudMusic.lyricsMatchCurrentTrack();
+    }
+
+    /**
+     * 当前正在唱的那句原文（已按排版宽度拆成多行时用空格拼回一行）。
+     *
+     * <p>给灵动岛的「正在播放」条用：宿主要的是歌词本身，不是歌名/歌手。
+     * 没有正在唱的句子（前奏、间奏、纯音乐）时返回空串，调用方据此退回歌名。</p>
+     */
+    public static String activeLyricText() {
+        WorldLyricsState state = get();
+        if (state == null) {
+            return "";
+        }
+        SpawnedLine a = state.active;
+        if (a == null || a.lines == null || a.lines.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String line : a.lines) {
+            if (line == null) {
+                continue;
+            }
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(trimmed);
+        }
+        return sb.toString();
     }
 
     /** 供测试：重置全部帧间状态。 */

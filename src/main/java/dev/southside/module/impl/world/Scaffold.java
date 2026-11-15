@@ -66,6 +66,7 @@ import net.minecraft.block.DoorBlock;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.block.FenceGateBlock;
 import net.minecraft.util.math.Direction;
+import dev.southside.muonium.MuoniumBridge;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.block.TrapdoorBlock;
@@ -203,6 +204,10 @@ public class Scaffold extends Module {
             this.waitingForEagleSneak = false;
             this.rot = null;
             super.onEnable();
+            // 通知内建的 MuoniumPlayer：进入搭路模式。
+            // 歌词会改到玩家左右两侧、朝向跟随搭路方向；灵动岛改显示剩余方块与方位。
+            MuoniumBridge.pushScaffoldState(true, mc.player.getYaw(),
+                    this.getBlockCountHotbar(), this.placeCount);
         }
     }
 
@@ -229,6 +234,8 @@ public class Scaffold extends Module {
             mc.options.sneakKey.setPressed(false);
             MovementUtils.resetMove();
             super.onDisable();
+            // 退出搭路模式：歌词恢复常规散布，灵动岛回到只显示方位。
+            MuoniumBridge.clearScaffoldState();
         }
     }
 
@@ -241,6 +248,12 @@ public class Scaffold extends Module {
 
     @EventHandler
     public void onRender3D(Render3DEvent event) {
+        // 每帧刷新搭路状态：方向会随移动转身变化，方块数会随放置递减。
+        // 这里只写静态槽（volatile），不触发任何分配，开销可忽略。
+        if (this.isEnabled() && mc.player != null) {
+            MuoniumBridge.pushScaffoldState(true, mc.player.getYaw(),
+                    this.getBlockCountHotbar(), this.placeCount);
+        }
         if (this.lastPlacePosition != null && this.mark.getValue()) {
             Box box = new Box(this.lastPlacePosition);
             Render3D.boxLines(box, this.markLineColor.getValue().toJavaColor());

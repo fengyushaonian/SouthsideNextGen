@@ -21,7 +21,15 @@ final class IslandAmbientStatus {
         PING,
         CLOCK,
         /** 正在播放：歌名 + 歌手，左侧大图标换成封面。 */
-        NOW_PLAYING
+        NOW_PLAYING,
+        /**
+         * 外挂（Southside 搭路）信息：搭路中显示剩余方块数与已放置数，
+         * 空闲时显示当前方位。文本由 {@code CheatClientBridge} 每帧灌进来。
+         *
+         * <p>刻意复用 {@code showIcon=false}：渲染层的图标分支只有 FPS/PING/CLOCK 三档，
+         * 新增类别会落到默认的时钟图标上，那会读成"时间"。这几个条目只出文字。</p>
+         */
+        SCAFFOLD
     }
 
     /** 常驻内容分页。轮换就是在这两页之间切换。 */
@@ -112,6 +120,76 @@ final class IslandAmbientStatus {
     /** 最近一次判定为"在移动"的时刻。用于给移动状态加一点滞回，避免图标在原地抖着换。 */
     private static long lastMovingAt;
 
+    // ==================== 外挂（搭路）状态槽 ====================
+    // 由 CheatClientBridge 每帧写入。只在状态页追加条目，不改动其它页的既有语义。
+    /** 搭路模块是否启用。 */
+    private static volatile boolean scaffoldActive;
+    /** 搭路方向（度，MC 口径）。 */
+    private static volatile float scaffoldYawDeg;
+    /** 热键栏剩余方块数。 */
+    private static volatile int scaffoldHotbar;
+    /** 本次搭路已放置方块数。 */
+    private static volatile int scaffoldPlaced;
+    /** 方位名（N/E/S/W）。空串 = 未知，此时不显示方位条目。 */
+    private static volatile String scaffoldFacing = "";
+
+    /**
+     * 写入搭路状态。由 {@code CheatClientBridge} 转发，宿主每帧调一次即可。
+     *
+     * <p>空闲（{@code active=false}）时仍然保留方位 —— 用户要的是"空闲时也看得到朝哪边"，
+     * 所以这里不清 facing，只清搭路专属字段。</p>
+     */
+    public static void setScaffold(boolean active, float yawDeg,
+                            int hotbarBlocks, int placedBlocks, String facing) {
+        scaffoldActive = active;
+        scaffoldYawDeg = yawDeg;
+        scaffoldHotbar = Math.max(0, hotbarBlocks);
+        scaffoldPlaced = Math.max(0, placedBlocks);
+        scaffoldFacing = facing == null ? "" : facing.trim();
+    }
+
+    /** 清空搭路状态（宿主关掉搭路模块时调用）。方位一并清掉。 */
+    public static void clearScaffold() {
+        scaffoldActive = false;
+        scaffoldHotbar = 0;
+        scaffoldPlaced = 0;
+        scaffoldFacing = "";
+    }
+
+    /** 是否有可展示的外挂条目（供 captureStatus 决定要不要做空快照早退）。 */
+    private static boolean hasScaffoldChip() {
+        return scaffoldActive || !scaffoldFacing.isEmpty();
+    }
+
+    /**
+     * 把外挂条目并到状态页最前面。
+     *
+     * <p>放最前面而不是末尾：搭路时玩家最关心的是还剩多少方块，帧率与延迟是背景信息。
+     * 条数最多两个（搭路中：方块数 + 方位；空闲：只有方位），岛宽不会因为多一行而跳变。</p>
+     */
+    private static Chip[] mergeScaffold(Chip[] base) {
+        if (!hasScaffoldChip()) {
+            return base;
+        }
+        java.util.ArrayList<Chip> list = new java.util.ArrayList<>(base.length + 2);
+        if (scaffoldActive) {
+            int safe = Math.min(9999, scaffoldHotbar);
+            list.add(new Chip(Kind.SCAFFOLD, Integer.toString(safe),
+                    safe >= 1000 ? "8888" : "888", "块",
+                    safe <= 8 ? Health.BAD : (safe <= 24 ? Health.WARN : Health.GOOD), false));
+            if (!scaffoldFacing.isEmpty()) {
+                list.add(new Chip(Kind.SCAFFOLD, scaffoldFacing, "WW", "", Health.NEUTRAL, false));
+            }
+        } else if (!scaffoldFacing.isEmpty()) {
+            // 空闲：只报方位（用户要的"空闲时显示方向"）。
+            list.add(new Chip(Kind.SCAFFOLD, scaffoldFacing, "WW", "", Health.NEUTRAL, false));
+        }
+        for (Chip chip : base) {
+            list.add(chip);
+        }
+        return list.toArray(new Chip[0]);
+    }
+
     /** 移动状态的滞回窗口：停下后仍按"移动"再显示这么久，跑步动画不会一步一停。 */
     static final long MOVING_HOLD_MILLIS = 450L;
 
@@ -125,6 +203,8 @@ final class IslandAmbientStatus {
      */
     private static final int NOW_PLAYING_TITLE_LIMIT = 64;
     private static final int NOW_PLAYING_ARTIST_LIMIT = 40;
+    /** 歌词副行的字数上限：比歌手宽，因为副行现在优先放当前歌词。 */
+    private static final int NOW_PLAYING_LYRIC_LIMIT = 56;
 
     /**
      * 按配置组装常驻条目。三个开关全关时返回空快照，灵动岛会退回紧凑胶囊而不是画一条空白行。
@@ -167,11 +247,21 @@ final class IslandAmbientStatus {
     static Snapshot describeNowPlaying(String title, String artist, long epochMillis, boolean moving) {
         String safeTitle = trimText(title, NOW_PLAYING_TITLE_LIMIT);
         if (safeTitle.isEmpty()) return EMPTY;
-        String safeArtist = trimText(artist, NOW_PLAYING_ARTIST_LIMIT);
-        // 歌手前面补一个分隔点：常驻行的"单位"槽间距只有 2.2 像素，直接接歌名会读成一个词。
-        String artistLabel = safeArtist.isEmpty() ? "" : "· " + safeArtist;
+        // 副行优先给「当前歌词」：主行已经是歌名了，副行再放歌手属于信息重复；
+        // 空闲时想扫一眼词才是用户的真实诉求。取不到词（前奏/间奏/纯音乐）才退回歌手。
+        String lyric = trimText(
+                com.muoniumplayer.core.lyrics3d.WorldLyricsState.activeLyricText(),
+                NOW_PLAYING_LYRIC_LIMIT);
+        String subLabel;
+        if (!lyric.isEmpty()) {
+            subLabel = "· " + lyric;
+        } else {
+            String safeArtist = trimText(artist, NOW_PLAYING_ARTIST_LIMIT);
+            // 歌手前面补一个分隔点：常驻行的"单位"槽间距只有 2.2 像素，直接接歌名会读成一个词。
+            subLabel = safeArtist.isEmpty() ? "" : "· " + safeArtist;
+        }
         Chip[] chips = new Chip[] {
-                new Chip(Kind.NOW_PLAYING, safeTitle, safeTitle, artistLabel, Health.NEUTRAL, false)
+                new Chip(Kind.NOW_PLAYING, safeTitle, safeTitle, subLabel, Health.NEUTRAL, false)
         };
         return new Snapshot(chips, epochMillis, Page.NOW_PLAYING, moving);
     }
@@ -283,7 +373,7 @@ final class IslandAmbientStatus {
         boolean showFps = HudConfig.dynamicIslandAmbientFps;
         boolean showPing = HudConfig.dynamicIslandAmbientPing;
         boolean showClock = HudConfig.dynamicIslandAmbientClock;
-        if (!showFps && !showPing && !showClock) return EMPTY;
+        if (!showFps && !showPing && !showClock && !hasScaffoldChip()) return EMPTY;
         int fps = -1;
         int ping = 0;
         boolean pingKnown = false;
@@ -311,7 +401,9 @@ final class IslandAmbientStatus {
         }
         Snapshot status = describe(showFps, showPing, showClock, fps, ping, pingKnown, now);
         // describe 保持原签名（离线探针在用），移动状态在这里补进快照。
-        return status.isEmpty() ? EMPTY : new Snapshot(status.chips, now, Page.STATUS, moving);
+        // 外挂条目（搭路方块数/方位）并入状态页最前面。
+        Chip[] merged = mergeScaffold(status.chips);
+        return merged.length == 0 ? EMPTY : new Snapshot(merged, now, Page.STATUS, moving);
     }
 
     private static Health fpsHealth(int fps) {

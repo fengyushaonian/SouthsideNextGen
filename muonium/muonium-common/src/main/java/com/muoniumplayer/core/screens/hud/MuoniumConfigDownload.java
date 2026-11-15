@@ -334,6 +334,20 @@ public final class MuoniumConfigDownload {
         if (!enabled()) return false;
         String key = buildKey(mcVersion, loaderId);
         if (key.isEmpty()) return false;
+
+        // 没有对应构建的车道一律不下载。
+        //
+        // 1.21.4 就是这种情况：BUILDS 里只有 1.21.1 / 1.21.10 / 1.21.11 / 26.x，
+        // 上游也从未发布过 mc1.21.4 的产物。这条闸门是踩坑后补的 —— 之前这里不校验，
+        // 而 MC_VERSION 又从 1.21.1 车道继承成了 "1.21.1"，于是 1.21.4 的客户端会
+        // 把 mc1.21.1 编译的 muoniumconfig 下进 mods/，那个包的 fabric.mod.json 写着
+        // 「minecraft 1.21.1 ~ 1.21.2」，下次启动直接被 Loader 拦下：
+        //   Incompatible mods found! (muoniumconfigv1 1.8.0 ... 1.21.4 不对)
+        // 宁可让 H 设置中心退回内置界面，也不能往 mods/ 里塞错版本的 jar。
+        if (!BUILDS.containsKey(key)) {
+            return false;
+        }
+
         lane = key;
 
         // 这是「每次启动都查」的唯一闸：两处调用点（beginCheck 与加载器入口）都会进来，

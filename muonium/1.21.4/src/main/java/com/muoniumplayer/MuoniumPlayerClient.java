@@ -69,7 +69,7 @@ public final class MuoniumPlayerClient {
      * 而原版取版本号的入口四个版本各不相同。静态测试钉住它与 gradle.properties 的
      * minecraft_version 一致，改一处漏另一处会直接构建失败。
      */
-    public static final String MC_VERSION = "1.21.1";
+    public static final String MC_VERSION = "1.21.4";
 
     /**
      * 加载器 id（{@code fabric} / {@code forge} / {@code neoforge}），由入口外壳在 {@link #init()}

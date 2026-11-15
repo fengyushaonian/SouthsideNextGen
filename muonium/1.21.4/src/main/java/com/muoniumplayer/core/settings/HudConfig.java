@@ -575,7 +575,15 @@ public final class HudConfig {
      */
     public static final String HUD_EDITOR_UI_MODERNUI = "modernui";
 
-    public static String hudEditorUi = HUD_EDITOR_UI_MCONFIG;
+    /**
+     * 默认走内置界面，不是 mconfig。
+     *
+     * <p>MuoniumConfig（mconfig）没有 mc1.21.4 的构建：上游 BUILD 表只有 1.21.1 /
+     * 1.21.10 / 1.21.11 / 26.x。默认指向一个永远装不上的界面，只会让玩家在
+     * H 里看到「没装」的提示。内置界面 {@code GuiHudEditorPro} 是本车道唯一
+     * 保证可用的那一条，回退顺序见 {@code MuoniumPlayerClient#openHudEditor}。</p>
+     */
+    public static String hudEditorUi = HUD_EDITOR_UI_BUILTIN;
 
     /**
      * 播放态由谁供给：内部播放器，还是系统里正在播的外部播放器（Windows SMTC）。

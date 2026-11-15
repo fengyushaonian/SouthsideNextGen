@@ -13,7 +13,7 @@ import java.util.Calendar;
  * <p>宽度模板是关键设计：FPS 与延迟每秒都在变，如果按真实字宽排版，灵动岛会一直微微伸缩。
  * 每个条目都按固定位数的模板预留宽度，数值居中绘制，于是常驻状态下宽度完全静止。</p>
  */
-final class IslandAmbientStatus {
+public final class IslandAmbientStatus {
 
     /** 常驻条目类别。左侧小图标与单位都由类别决定。 */
     enum Kind {

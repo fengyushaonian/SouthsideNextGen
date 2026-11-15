@@ -248,10 +248,13 @@ class AnnouncementStaticTest {
 
         String fabric = stripComments(read(ProjectPaths.fabric().resolve(Paths.get(
                 "src", "main", "java", "com", "muoniumplayer", "MuoniumPlayerMod.java"))));
-        assertTrue(fabric.contains("TitleMenuAnnouncementButton.create()"),
-                "Fabric 侧必须在 AFTER_INIT 里挂上这颗按钮");
-        assertTrue(fabric.contains("Screens.get"),
-                "加组件走 fabric-screen-api 的活列表，不自己碰原版受保护方法");
+        // 内建进 Southside 之后，打开播放器的入口统一由宿主提供（主界面 Music 按钮、
+        // 标题界面 Music 按钮、ClickGUI 的 MuoniumPlayer 模块）。Muonium 自己不再往
+        // 原版界面挂任何按钮，因此这两条从「必须存在」改成「必须不存在」—— 守住不被加回去。
+        assertFalse(fabric.contains("TitleMenuAnnouncementButton.create()"),
+                "Fabric 侧不得再挂这颗按钮：入口归宿主");
+        assertFalse(fabric.contains("Screens.get"),
+                "不得再碰 fabric-screen-api 的活列表：Muonium 不再往原版界面加组件");
 
         Path loader = loaderShell();
         String loaderSide = stripComments(read(loader));

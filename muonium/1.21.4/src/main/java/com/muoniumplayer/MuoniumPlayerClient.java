@@ -154,7 +154,12 @@ public final class MuoniumPlayerClient {
         keyAmbientNow = key("key.muonium.ambient_now", Keyboard.KEY_NONE);
         // 世界声源放置/移除（单键智能切换）：默认不占键位,同 keyAmbientNow 的理由。
         keySpeakerPlace = key("key.muonium.speaker_place", Keyboard.KEY_NONE);
-        return List.of(keyOpenMusic, keyEditHud, keyPreviousTrack, keyNextTrack,
+        // 打开播放器（右 Shift）与打开设置中心（H）这两个键属于「Muonium 自带的 GUI 入口」。
+        // 内建进 Southside 之后，打开界面统一由外挂那一侧负责（主界面 Music 按钮、
+        // 标题界面 Music 按钮、ClickGUI 的 MuoniumPlayer 模块），所以这两个键不再进入
+        // 按键列表 —— 玩家在「选项 → 控制」里看不到它们，按了也不会打开任何界面。
+        // 字段本身仍然构造：MuoniumKeysBridge 要读它们做显示，且 null 会让那边走降级分支。
+        return List.of(keyPreviousTrack, keyNextTrack,
                 keyVolumeUp, keyVolumeDown, keyTogglePause, keyQuickSearch, keyAmbientNow, keySpeakerPlace);
     }
 
@@ -340,12 +345,8 @@ public final class MuoniumPlayerClient {
             return;
         }
         if (mc.player != null && mc.screen == null) {
-            if (keyOpenMusic.consumeClick()) {
-                MuoniumPlayerExtension.getInstance().musicPlayerModule.setEnabled(true);
-            }
-            if (keyEditHud.consumeClick()) {
-                openHudEditor(mc);
-            }
+            // 打开播放器 / 打开设置中心的按键已被移除（见 createKeyMappings 的说明），
+            // 界面的打开权交给宿主 Southside。这里不再消费 keyOpenMusic / keyEditHud。
 
             // 复用与上一曲/下一曲按钮完全相同的播放器控制路径。
             // consumeClick() 是边沿触发，因此长按某个键绝不会排队重复切歌。
@@ -397,8 +398,6 @@ public final class MuoniumPlayerClient {
         } else {
             // 打开 GUI 时把这一 tick 积累的边沿消费掉，避免关掉界面的瞬间一次性全部触发。
             // 1.8.9 靠 Forge 的按键处理天然不会积累；现在 consumeClick 的计数会留到下次读取。
-            keyOpenMusic.consumeClick();
-            keyEditHud.consumeClick();
             keyPreviousTrack.consumeClick();
             keyNextTrack.consumeClick();
             keyVolumeUp.consumeClick();

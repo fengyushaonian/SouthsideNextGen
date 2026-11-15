@@ -1,7 +1,6 @@
 package com.muoniumplayer;
 
 import com.muoniumplayer.party.net.MpNetFabric;
-import com.muoniumplayer.core.screens.TitleMenuAnnouncementButton;
 import com.muoniumplayer.compat.mc.WorldLyricsBridge;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -9,7 +8,6 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
 
 /**
@@ -87,11 +85,9 @@ public class MuoniumPlayerMod implements ClientModInitializer {
                         client.onScreenRendered(renderedScreen);
                         client.onRenderLayerNotice(drawContext, true);
                     });
-            // 主菜单上的「公告」入口。AFTER_INIT 在原版 init() 之后派发，窗口 resize 时会再来一次，
-            // 而那时原版已经清空了自己的组件，所以这里 add 一次就是一次，不会越加越多。
-            if (TitleMenuAnnouncementButton.appliesTo(screen)) {
-                Screens.getButtons(screen).add(TitleMenuAnnouncementButton.create());
-            }
+            // 主菜单上的「公告 / 进入播放器」按钮已移除：内建进 Southside 后，
+            // 打开界面只由宿主那一侧提供（主界面 Music 按钮、标题界面 Music 按钮、
+            // ClickGUI 的 MuoniumPlayer 模块），Muonium 自己不再往原版界面加任何入口。
         });
     }
 }
